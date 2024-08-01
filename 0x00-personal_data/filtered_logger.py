@@ -12,7 +12,9 @@ import bcrypt
 
 PII_FIELDS = ("email", "phone", "ssn", "password", "name")
 
-def filter_datum(fields: List[str], redaction: str, message: str, separator: str) -> str:
+
+def filter_datum(fields: List[str], redaction: str, message: str,
+                 separator: str) -> str:
     """
     Obfuscates the specified fields in the log message.
 
@@ -26,7 +28,9 @@ def filter_datum(fields: List[str], redaction: str, message: str, separator: str
         str: Obfuscated log message.
     """
     pattern = '|'.join([f'{field}=[^;]*' for field in fields])
-    return re.sub(pattern, lambda match: f'{match.group().split("=")[0]}={redaction}', message)
+    return re.sub(pattern,
+                  lambda match: f'{match.group().split("=")[0]}={redaction}', message)
+
 
 class RedactingFormatter(logging.Formatter):
     """
@@ -57,7 +61,9 @@ class RedactingFormatter(logging.Formatter):
         Returns:
             str: Formatted log record.
         """
-        return filter_datum(self.fields, self.REDACTION, record.getMessage(), self.SEPARATOR)
+        return filter_datum(self.fields, self.REDACTION,
+                            record.getMessage(), self.SEPARATOR)
+
 
 def get_logger() -> logging.Logger:
     """
@@ -77,6 +83,7 @@ def get_logger() -> logging.Logger:
     logger.addHandler(handler)
     return logger
 
+
 def get_db() -> Any:
     """
     Creates a database connection using credentials from environment variables.
@@ -91,6 +98,7 @@ def get_db() -> Any:
         database=os.getenv('PERSONAL_DATA_DB_NAME')
     )
 
+
 def hash_password(password: str) -> bytes:
     """
     Hashes a password with a salt.
@@ -102,6 +110,7 @@ def hash_password(password: str) -> bytes:
         bytes: Hashed password.
     """
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+
 
 def is_valid(hashed_password: bytes, password: str) -> bool:
     """
@@ -116,6 +125,7 @@ def is_valid(hashed_password: bytes, password: str) -> bool:
     """
     return bcrypt.checkpw(password.encode(), hashed_password)
 
+
 def main() -> None:
     """
     Main function to read and filter data from the database.
@@ -125,10 +135,10 @@ def main() -> None:
     cursor = db.cursor()
     cursor.execute("SELECT * FROM users;")
     for row in cursor:
-        logger.info("name=%s; email=%s; phone=%s; ssn=%s; password=%s; ip=%s; last_login=%s; user_agent=%s;",
-                    row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7])
+        logger.info("name=%s; email=%s; phone=%s; ssn=%s; password=%s; ip=%s; last_login=%s; user_agent=%s;", row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7])
     cursor.close()
     db.close()
+
 
 if __name__ == "__main__":
     main()
