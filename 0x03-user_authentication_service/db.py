@@ -1,67 +1,73 @@
 #!/usr/bin/env python3
-"""DB module
-"""
-
+""" Database for ORM """
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.exc import InvalidRequestError, NoResultFound
-
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import InvalidRequestError
+from sqlalchemy.orm.exc import NoResultFound
+from typing import TypeVar
 from user import Base, User
-from typing import Dict
 
 
 class DB:
-    """DB class for interacting with the database."""
+    """ DB Class for Object Reational Mapping """
 
-    def __init__(self) -> None:
-        """Initialize a new DB instance."""
-        self._engine = create_engine("sqlite:///a.db", echo=True)
+    def __init__(self):
+        """ Constructor Method """
+        self._engine = create_engine("sqlite:///a.db", echo=False)
         Base.metadata.drop_all(self._engine)
         Base.metadata.create_all(self._engine)
         self.__session = None
 
     @property
-    def _session(self) -> Session:
-        """Memoized session object."""
+    def _session(self):
+        """ Session Getter Method """
         if self.__session is None:
             DBSession = sessionmaker(bind=self._engine)
             self.__session = DBSession()
         return self.__session
 
     def add_user(self, email: str, hashed_password: str) -> User:
-        """Creates a new user and adds them to the database.
-        
-        Args:
-            email (str): The user's email address.
-            hashed_password (str): The user's hashed password.
-        
-        Returns:
-            User: The newly created User object.
+        """ Adds user to database
+        Return: User Object
         """
-        session = self._session
         user = User(email=email, hashed_password=hashed_password)
-        session.add(user)
-        session.commit()
+        self._session.add(user)
+        self._session.commit()
+
         return user
 
-    def find_user_by(self, **kwargs: Dict) -> User:
-        """Find a user by arbitrary keyword arguments.
-        
-        Args:
-            **kwargs (Dict): Arbitrary keyword arguments to search for.
-        
-        Returns:
-            User: The user object that matches the given criteria.
-        
-        Raises:
-            NoResultFound: If no user was found with the provided criteria.
-            InvalidRequestError: If the provided criteria is invalid.
+    def find_user_by(self, **kwargs) -> User:
+        """ Finds user by key word args
+        Return: First row found in the users table as filtered by kwargs
         """
-        session = self._session
-        try:
-            user = session.query(User).filter_by(**kwargs).one()
-        except (InvalidRequestError, NoResultFound) as e:
-            raise e
+        if not kwargs:
+            raise InvalidRequestError
+
+        column_names = User.__table__.columns.keys()
+        for key in kwargs.keys():
+            if key not in column_names:
+                raise InvalidRequestError
+
+        user = self._session.query(User).filter_by(**kwargs).first()
+
+        if user is None:
+            raise NoResultFound
 
         return user
+
+    def update_user(self, user_id: int, **kwargs) -> None:
+        """ Update users attributes
+        Returns: None
+        """
+        user = self.find_user_by(id=user_id)
+
+        column_names = User.__table__.columns.keys()
+        for key in kwargs.keys():
+            if key not in column_names:
+                raise ValueError
+
+        for key, value in kwargs.items():
+            setattr(user, key, value)
+
+        self._session.commit()
